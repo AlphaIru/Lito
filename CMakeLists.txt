@@ -38,3 +38,16 @@ target_include_directories(lito_lexer_tests PRIVATE
 
 add_test(NAME LexerTests COMMAND lito_lexer_tests)
 
+
+# Parser tests
+add_executable(lito_parser_tests
+    tests/parser_tests.cpp
+    src/parser.cpp
+    src/lexer.cpp
+)
+
+target_include_directories(lito_parser_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+add_test(NAME ParserTests COMMAND lito_parser_tests)
