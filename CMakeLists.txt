@@ -23,3 +23,18 @@ add_executable(lito
 target_include_directories(lito PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
+
+enable_testing()
+
+# Lexer tests.
+add_executable(lito_lexer_tests
+    tests/lexer_tests.cpp
+    src/lexer.cpp
+)
+
+target_include_directories(lito_lexer_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+add_test(NAME LexerTests COMMAND lito_lexer_tests)
+

@@ -1,0 +1,7 @@
+// My first Lito program.
+
+int x = 10;
+int y = 20;
+
+/* Calculates the result. */
+int result = x + y;

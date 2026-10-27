@@ -13,6 +13,9 @@ class Lexer
   public:
     explicit Lexer(std::string source);
 
+    // Returns the percentage of source code.
+    std::size_t progressPercent() const;
+
     Token nextToken();
 
   private:
@@ -27,8 +30,9 @@ class Lexer
     // Character handling.
     bool isAtEnd() const;
     char peek() const;
+    char peekNext() const;
     char advance();
 
-    // Ignores spaces, tabs, and newlines.
-    void skipWhitespace();
+    // Ignores whitespace and comments.
+    void skipWhitespaceAndComments();
 };
