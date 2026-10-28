@@ -1,0 +1,7 @@
+// Arithmetic expression tests.
+
+print(10 + 20);
+print(10 + 20 * 3);
+print((10 + 20) * 3);
+print(-50);
+print(100 / 5);
