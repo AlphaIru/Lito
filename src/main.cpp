@@ -23,8 +23,9 @@
 #include "parser.hpp"
 #include "token.hpp"
 
-void compileExecutable(const CodeGenerator &generator,
-                       const std::string &outputPath);
+void compileExecutable(
+    const CodeGenerator &generator, const std::string &outputPath
+);
 
 int main(int argc, char *argv[])
 {
@@ -71,8 +72,10 @@ int main(int argc, char *argv[])
     }
 
     // Read source code.
-    std::string source{std::istreambuf_iterator<char>(litoFile),
-                       std::istreambuf_iterator<char>()};
+    std::string source{
+        std::istreambuf_iterator<char>(litoFile),
+        std::istreambuf_iterator<char>()
+    };
 
     if (litoFile.bad())
     {
@@ -132,36 +135,11 @@ int main(int argc, char *argv[])
         // Parse the entire program.
         std::vector<std::unique_ptr<Stmt>> program = parser.parseProgram();
 
-        // Currently, compile one expression statement.
-        if (program.size() != 1)
-        {
-            throw std::runtime_error(
-                "Expected exactly one expression statement");
-        }
-
-        const ExprStmt *statement =
-            dynamic_cast<const ExprStmt *>(program[0].get());
-
-        if (statement == nullptr)
-        {
-            throw std::runtime_error("Expected an expression statement");
-        }
-
         std::cerr << "Parsing: OK\n";
-
-        // Check for a function call.
-        const CallExpr *call =
-            dynamic_cast<const CallExpr *>(statement->expression.get());
-
-        if (call == nullptr)
-        {
-            throw std::runtime_error("Expected a function call");
-        }
 
         // Generate LLVM IR.
         CodeGenerator generator;
-
-        generator.generatePrint(*call);
+        generator.generateProgram(program);
 
         // Compile or display LLVM IR.
         if (showLLVM)
@@ -184,8 +162,9 @@ int main(int argc, char *argv[])
 }
 
 // Compile LLVM IR into a native executable.
-void compileExecutable(const CodeGenerator &generator,
-                       const std::string &outputPath)
+void compileExecutable(
+    const CodeGenerator &generator, const std::string &outputPath
+)
 {
     // Find Clang.
     llvm::ErrorOr<std::string> clangPath =
@@ -201,12 +180,14 @@ void compileExecutable(const CodeGenerator &generator,
     llvm::SmallString<128> temporaryPath;
 
     std::error_code error = llvm::sys::fs::createTemporaryFile(
-        "lito", "ll", fileDescriptor, temporaryPath);
+        "lito", "ll", fileDescriptor, temporaryPath
+    );
 
     if (error)
     {
-        throw std::runtime_error("Failed to create temporary file: " +
-                                 error.message());
+        throw std::runtime_error(
+            "Failed to create temporary file: " + error.message()
+        );
     }
 
     // Write LLVM IR.
@@ -226,7 +207,8 @@ void compileExecutable(const CodeGenerator &generator,
 
     // Execute Clang without a shell.
     llvm::StringRef arguments[] = {
-        "clang", "-x", "ir", temporaryPath.str(), "-o", outputPath};
+        "clang", "-x", "ir", temporaryPath.str(), "-o", outputPath
+    };
 
     int result = llvm::sys::ExecuteAndWait(*clangPath, arguments);
 

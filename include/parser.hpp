@@ -1,6 +1,7 @@
 // I wish this could be simplified...
 
 #include <memory>
+#include <vector>
 
 #include "ast.hpp"
 #include "lexer.hpp"
@@ -19,6 +20,8 @@ class Parser
     // Parse a statement.
     std::unique_ptr<Stmt> parseStatement();
 
+    std::vector<std::unique_ptr<Stmt>> parseProgram();
+
   private:
     // Lexer for this parser.
     Lexer &lexer_;
@@ -27,7 +30,11 @@ class Parser
     // Move to the next token.
     void advance();
 
+    // Parse an interger variable declaration.
+    std::unique_ptr<Stmt> parseVarDecl();
+
     std::unique_ptr<Expr> parseCall();
+
     std::unique_ptr<Expr> parseMult();
     std::unique_ptr<Expr> parsePrimary();
     std::unique_ptr<Expr> parseUnary();

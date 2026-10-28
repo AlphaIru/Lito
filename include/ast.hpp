@@ -27,6 +27,20 @@ struct ExprStmt : Stmt
     std::unique_ptr<Expr> expression;
 };
 
+// Variable declaration statement.
+struct VarDeclStmt : Stmt
+{
+    std::string name;
+    std::unique_ptr<Expr> initializer;
+};
+
+// Assignment statement.
+struct AssignStmt : Stmt
+{
+    std::string name;
+    std::unique_ptr<Expr> value;
+};
+
 // Call exp.
 struct CallExpr : Expr
 {
@@ -39,7 +53,9 @@ struct IntegerExpr : Expr
 {
     std::string value;
 
-    explicit IntegerExpr(std::string value) : value(std::move(value)) {}
+    explicit IntegerExpr(std::string value) : value(std::move(value))
+    {
+    }
 };
 
 // Identifier exp.
@@ -47,7 +63,9 @@ struct IdentifierExpr : Expr
 {
     std::string name;
 
-    explicit IdentifierExpr(std::string name) : name(std::move(name)) {}
+    explicit IdentifierExpr(std::string name) : name(std::move(name))
+    {
+    }
 };
 
 // Binary oper exp.

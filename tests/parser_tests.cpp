@@ -216,6 +216,57 @@ int main()
         }
     }
 
+    // Test 9: Integer variable declaration.
+    {
+        Lexer lexer("int x = 10;");
+        Parser parser(lexer);
+
+        std::unique_ptr<Stmt> statement = parser.parseStatement();
+
+        VarDeclStmt *declaration = dynamic_cast<VarDeclStmt *>(statement.get());
+
+        if (declaration == nullptr || declaration->name != "x")
+        {
+            std::cerr << "Variable declaration test failed!\n";
+            return 1;
+        }
+
+        IntegerExpr *integer =
+            dynamic_cast<IntegerExpr *>(declaration->initializer.get());
+
+        if (integer == nullptr || integer->value != "10")
+        {
+            std::cerr << "Variable initializer test failed!\n";
+            return 1;
+        }
+    }
+
+    // Test assignment statement.
+    {
+        Lexer lexer("x = x + 5;");
+        Parser parser(lexer);
+
+        std::unique_ptr<Stmt> statement = parser.parseStatement();
+
+        const AssignStmt *assignment =
+            dynamic_cast<const AssignStmt *>(statement.get());
+
+        if (assignment == nullptr || assignment->name != "x")
+        {
+            std::cerr << "Assignment parser test failed!\n";
+            return 1;
+        }
+
+        const BinaryExpr *expression =
+            dynamic_cast<const BinaryExpr *>(assignment->value.get());
+
+        if (expression == nullptr)
+        {
+            std::cerr << "Assignment expression test failed!\n";
+            return 1;
+        }
+    }
+
     std::cout << "All parser tests passed!\n";
     return 0;
 }

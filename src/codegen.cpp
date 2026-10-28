@@ -32,9 +32,12 @@ void CodeGenerator::generateExpression(const Expr &expression)
     llvm::FunctionType *functionType =
         llvm::FunctionType::get(builder_.getInt64Ty(), false);
 
-    llvm::Function *function =
-        llvm::Function::Create(functionType, llvm::Function::ExternalLinkage,
-                               "lito_expression", module_);
+    llvm::Function *function = llvm::Function::Create(
+        functionType,
+        llvm::Function::ExternalLinkage,
+        "lito_expression",
+        module_
+    );
 
     llvm::BasicBlock *entry =
         llvm::BasicBlock::Create(context_, "entry", function);
@@ -52,7 +55,8 @@ void CodeGenerator::generateExpression(const Expr &expression)
         llvm::FunctionType::get(builder_.getInt32Ty(), false);
 
     llvm::Function *mainFunction = llvm::Function::Create(
-        mainType, llvm::Function::ExternalLinkage, "main", module_);
+        mainType, llvm::Function::ExternalLinkage, "main", module_
+    );
 
     llvm::BasicBlock *mainEntry =
         llvm::BasicBlock::Create(context_, "entry", mainFunction);
@@ -61,8 +65,9 @@ void CodeGenerator::generateExpression(const Expr &expression)
     builder_.SetInsertPoint(mainEntry);
 
     // Call the generated expression.
-    llvm::Value *value = builder_.CreateCall(function->getFunctionType(),
-                                             function, {}, "result");
+    llvm::Value *value = builder_.CreateCall(
+        function->getFunctionType(), function, {}, "result"
+    );
 
     // Declare printf().
     llvm::Type *printfArguments[] = {builder_.getPtrTy()};
@@ -89,40 +94,25 @@ void CodeGenerator::generateExpression(const Expr &expression)
     }
 }
 
-// Generate a native program for print().
-void CodeGenerator::generatePrint(const CallExpr &call)
+// Generate LLVM IR for the entire program.
+void CodeGenerator::generateProgram(
+    const std::vector<std::unique_ptr<Stmt>> &program
+)
 {
-    // Check the function name.
-    const IdentifierExpr *callee =
-        dynamic_cast<const IdentifierExpr *>(call.callee.get());
-
-    if (callee == nullptr || callee->name != "print")
-    {
-        throw std::runtime_error("Unknown function");
-    }
-
-    // Currently, print() accepts one argument.
-    if (call.arguments.size() != 1)
-    {
-        throw std::runtime_error("print() expects exactly one argument");
-    }
-
     // Create main().
     llvm::FunctionType *mainType =
         llvm::FunctionType::get(builder_.getInt32Ty(), false);
 
     llvm::Function *mainFunction = llvm::Function::Create(
-        mainType, llvm::Function::ExternalLinkage, "main", module_);
+        mainType, llvm::Function::ExternalLinkage, "main", module_
+    );
 
     llvm::BasicBlock *entry =
         llvm::BasicBlock::Create(context_, "entry", mainFunction);
 
     builder_.SetInsertPoint(entry);
 
-    // Evaluate the print argument.
-    llvm::Value *value = emitExpression(*call.arguments[0]);
-
-    // Declare printf().
+    // Declare print().
     llvm::Type *printfArguments[] = {builder_.getPtrTy()};
 
     llvm::FunctionType *printfType =
@@ -134,13 +124,107 @@ void CodeGenerator::generatePrint(const CallExpr &call)
     // Create the integer format string.
     llvm::GlobalVariable *format = builder_.CreateGlobalString("%lld\n", "fmt");
 
-    // Call printf().
-    builder_.CreateCall(printfFunction, {format, value});
+    // Generate code for each statement.
+    for (const std::unique_ptr<Stmt> &statement : program)
+    {
+        // Variable declaration.
+        const VarDeclStmt *declaration =
+            dynamic_cast<const VarDeclStmt *>(statement.get());
 
-    // Return success from main().
+        if (declaration != nullptr)
+        {
+            // Reject duplicate variable declarations.
+            if (variables_.find(declaration->name) != variables_.end())
+            {
+                throw std::runtime_error(
+                    "Variable already declared: " + declaration->name
+                );
+            }
+
+            // Generate the initializer expression.
+            llvm::Value *initialValue =
+                emitExpression(*declaration->initializer);
+
+            // Allocate memory for the variable.
+            llvm::AllocaInst *variable = builder_.CreateAlloca(
+                builder_.getInt64Ty(), nullptr, declaration->name
+            );
+
+            // Store the initial value.
+            builder_.CreateStore(initialValue, variable);
+
+            // Register the variable.
+            variables_.emplace(declaration->name, variable);
+
+            continue;
+        }
+
+        // Assignment statement.
+        const AssignStmt *assignment =
+            dynamic_cast<const AssignStmt *>(statement.get());
+
+        if (assignment != nullptr)
+        {
+            // Find the existing variable.
+            std::unordered_map<std::string, llvm::AllocaInst *>::const_iterator
+                variable = variables_.find(assignment->name);
+
+            if (variable == variables_.end())
+            {
+                throw std::runtime_error(
+                    "Undefined variable: " + assignment->name
+                );
+            }
+
+            // Evaluate the new value.
+            llvm::Value *value = emitExpression(*assignment->value);
+
+            // Update the variable.
+            builder_.CreateStore(value, variable->second);
+
+            continue;
+        }
+
+        const ExprStmt *exprStmt =
+            dynamic_cast<const ExprStmt *>(statement.get());
+
+        if (exprStmt == nullptr)
+        {
+            throw std::runtime_error("Unsupported statement");
+        }
+
+        const CallExpr *call =
+            dynamic_cast<const CallExpr *>(exprStmt->expression.get());
+
+        if (call == nullptr)
+        {
+            throw std::runtime_error("Expected a function call");
+        }
+
+        const IdentifierExpr *callee =
+            dynamic_cast<const IdentifierExpr *>(call->callee.get());
+
+        if (callee == nullptr || callee->name != "print")
+        {
+            throw std::runtime_error("Unknown function");
+        }
+
+        if (call->arguments.size() != 1)
+        {
+            throw std::runtime_error("print() expects exactly one argument");
+        }
+
+        // Generate the argument expression.
+        llvm::Value *value = emitExpression(*call->arguments[0]);
+
+        // Print the result.
+        builder_.CreateCall(printfFunction, {format, value});
+    }
+
+    // Finish main().
     builder_.CreateRet(builder_.getInt32(0));
 
-    // Verify the generated module.
+    // Verify the module.
     if (llvm::verifyModule(module_, &llvm::errs()))
     {
         throw std::runtime_error("Invalid LLVM module");
@@ -158,6 +242,25 @@ llvm::Value *CodeGenerator::emitExpression(const Expr &expression)
         std::int64_t number = std::stoll(integer->value);
 
         return llvm::ConstantInt::getSigned(builder_.getInt64Ty(), number);
+    }
+
+    // Identifier expression.
+    const IdentifierExpr *identifier =
+        dynamic_cast<const IdentifierExpr *>(&expression);
+
+    if (identifier != nullptr)
+    {
+        std::unordered_map<std::string, llvm::AllocaInst *>::const_iterator
+            variable = variables_.find(identifier->name);
+
+        if (variable == variables_.end())
+        {
+            throw std::runtime_error("Undefined variable: " + identifier->name);
+        }
+
+        return builder_.CreateLoad(
+            builder_.getInt64Ty(), variable->second, identifier->name + ".value"
+        );
     }
 
     const UnaryExpr *unary = dynamic_cast<const UnaryExpr *>(&expression);

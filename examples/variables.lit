@@ -1,0 +1,8 @@
+// My first variables in Lito.
+
+int x = 10;
+int y = 20;
+int result = x + y;
+
+print(result);
+print(x * y);

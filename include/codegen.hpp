@@ -2,7 +2,14 @@
 
 #pragma once
 
+#include <llvm/IR/Instructions.h>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
 #include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/Instruction.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Value.h>
@@ -19,7 +26,7 @@ class CodeGenerator
     CodeGenerator();
 
     void generateExpression(const Expr &expression);
-    void generatePrint(const CallExpr &call);
+    void generateProgram(const std::vector<std::unique_ptr<Stmt>> &program);
 
     void printIR(llvm::raw_ostream &output) const;
 
@@ -29,4 +36,6 @@ class CodeGenerator
     llvm::IRBuilder<llvm::NoFolder> builder_;
 
     llvm::Value *emitExpression(const Expr &expression);
+
+    std::unordered_map<std::string, llvm::AllocaInst *> variables_;
 };

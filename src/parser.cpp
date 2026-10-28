@@ -6,10 +6,58 @@
 #include <utility>
 
 #include "parser.hpp"
+#include "token.hpp"
 
-Parser::Parser(Lexer &lexer) : lexer_(lexer), current_(lexer_.nextToken()) {}
+Parser::Parser(Lexer &lexer) : lexer_(lexer), current_(lexer_.nextToken())
+{
+}
 
-void Parser::advance() { current_ = lexer_.nextToken(); }
+void Parser::advance()
+{
+    current_ = lexer_.nextToken();
+}
+
+// Parse an integer variable declaration.
+std::unique_ptr<Stmt> Parser::parseVarDecl()
+{
+    advance(); // Consume 'int'
+
+    // Expect variable name.
+    if (current_.type != TokenType::Identifier)
+    {
+        throw std::runtime_error("Expected variable name");
+    }
+
+    std::string name = current_.text;
+    advance();
+
+    // Expect '='.
+    if (current_.type != TokenType::Assign)
+    {
+        throw std::runtime_error("Expected '='");
+    }
+
+    advance();
+
+    // Parse initializer.
+    std::unique_ptr<Expr> initializer = parseArth();
+
+    // Expect ';'.
+    if (current_.type != TokenType::Semicolon)
+    {
+        throw std::runtime_error("Expected ';'");
+    }
+
+    advance();
+
+    // Create AST node.
+    std::unique_ptr<VarDeclStmt> declaration = std::make_unique<VarDeclStmt>();
+
+    declaration->name = std::move(name);
+    declaration->initializer = std::move(initializer);
+
+    return declaration;
+}
 
 IntegerExpr Parser::parseInteger()
 {
@@ -17,7 +65,8 @@ IntegerExpr Parser::parseInteger()
     {
         throw std::runtime_error(
             "Expected an integer at line: " + std::to_string(current_.line) +
-            ", column: " + std::to_string(current_.column));
+            ", column: " + std::to_string(current_.column)
+        );
     }
 
     IntegerExpr result{current_.text};
@@ -30,22 +79,56 @@ IntegerExpr Parser::parseInteger()
 // Parse an expr stmt.
 std::unique_ptr<Stmt> Parser::parseStatement()
 {
+
+    // Variable declaration.
+    if (current_.type == TokenType::Int)
+    {
+        return parseVarDecl();
+    }
+
     // Parse the expression.
     std::unique_ptr<Expr> expression = parseArth();
+
+    // Assignment statement.
+    if (current_.type == TokenType::Assign)
+    {
+        const IdentifierExpr *identifier =
+            dynamic_cast<const IdentifierExpr *>(expression.get());
+
+        if (identifier == nullptr)
+        {
+            throw std::runtime_error("Invalid assignment target");
+        }
+
+        std::unique_ptr<AssignStmt> assignment = std::make_unique<AssignStmt>();
+
+        assignment->name = identifier->name;
+
+        advance(); // Consume '='.
+
+        assignment->value = parseArth();
+
+        if (current_.type != TokenType::Semicolon)
+        {
+            throw std::runtime_error("Expected ';'");
+        }
+
+        advance();
+
+        return assignment;
+    }
 
     // Expect a semicolon.
     if (current_.type != TokenType::Semicolon)
     {
-        throw std::runtime_error("Expected ';' at line " +
-                                 std::to_string(current_.line) + ", column " +
-                                 std::to_string(current_.column));
+        throw std::runtime_error("Expected ';'");
     }
 
     // Consume ';'
     advance();
 
     // Create an expression statement.
-    auto statement = std::make_unique<ExprStmt>();
+    std::unique_ptr<ExprStmt> statement = std::make_unique<ExprStmt>();
     statement->expression = std::move(expression);
 
     return statement;
@@ -81,7 +164,8 @@ std::unique_ptr<Expr> Parser::parsePrimary()
         {
             throw std::runtime_error(
                 "Expected ')' at line " + std::to_string(current_.line) +
-                ", column " + std::to_string(current_.column));
+                ", column " + std::to_string(current_.column)
+            );
         }
 
         // Consume ')'
@@ -90,9 +174,23 @@ std::unique_ptr<Expr> Parser::parsePrimary()
         return expression;
     }
 
-    throw std::runtime_error("Unexpected token at line " +
-                             std::to_string(current_.line) + ", column " +
-                             std::to_string(current_.column));
+    throw std::runtime_error(
+        "Unexpected token at line " + std::to_string(current_.line) +
+        ", column " + std::to_string(current_.column)
+    );
+}
+
+// Parses for LLVM program.
+std::vector<std::unique_ptr<Stmt>> Parser::parseProgram()
+{
+    std::vector<std::unique_ptr<Stmt>> statements;
+
+    while (current_.type != TokenType::EndOfFile)
+    {
+        statements.push_back(parseStatement());
+    }
+
+    return statements;
 }
 
 // Parse Expr.

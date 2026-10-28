@@ -85,31 +85,20 @@ int main()
         return 1;
     }
 
-    // Test print() code generation.
+    // Test multiple print statements.
     {
-        Lexer lexer("print(123);");
+        Lexer lexer(
+            "print(123);"
+            "print(10);"
+            "print(10 + 20);"
+        );
+
         Parser parser(lexer);
 
-        std::unique_ptr<Stmt> statement = parser.parseStatement();
-
-        ExprStmt *exprStmt = dynamic_cast<ExprStmt *>(statement.get());
-
-        if (exprStmt == nullptr)
-        {
-            std::cerr << "Expected ExprStmt!\n";
-            return 1;
-        }
-
-        CallExpr *call = dynamic_cast<CallExpr *>(exprStmt->expression.get());
-
-        if (call == nullptr)
-        {
-            std::cerr << "Expected CallExpr!\n";
-            return 1;
-        }
+        std::vector<std::unique_ptr<Stmt>> program = parser.parseProgram();
 
         CodeGenerator generator;
-        generator.generatePrint(*call);
+        generator.generateProgram(program);
 
         std::string ir;
         llvm::raw_string_ostream output(ir);
@@ -117,10 +106,93 @@ int main()
         generator.printIR(output);
         output.flush();
 
-        if (ir.find("@printf") == std::string::npos ||
-            ir.find("i64 123") == std::string::npos)
+        // Count the generated printf calls.
+        const std::string callText = "call i32 (ptr, ...) @printf";
+
+        std::size_t count = 0;
+        std::size_t position = 0;
+
+        while ((position = ir.find(callText, position)) != std::string::npos)
         {
-            std::cerr << "Print code generation failed!\n";
+            count++;
+            position += callText.size();
+        }
+
+        if (count != 3 || ir.find("add i64 10, 20") == std::string::npos)
+        {
+            std::cerr << "Multiple print code generation failed!\n";
+            std::cerr << ir << '\n';
+            return 1;
+        }
+    }
+
+    // Test integer variable declarations.
+    {
+        Lexer lexer(
+            "int x = 10;"
+            "int y = 20;"
+            "print(x + y);"
+        );
+
+        Parser parser(lexer);
+
+        std::vector<std::unique_ptr<Stmt>> program = parser.parseProgram();
+
+        CodeGenerator generator;
+        generator.generateProgram(program);
+
+        std::string ir;
+        llvm::raw_string_ostream output(ir);
+
+        generator.printIR(output);
+        output.flush();
+
+        if (ir.find("alloca i64") == std::string::npos ||
+            ir.find("store i64 10") == std::string::npos ||
+            ir.find("store i64 20") == std::string::npos ||
+            ir.find("load i64") == std::string::npos ||
+            ir.find("add i64") == std::string::npos)
+        {
+            std::cerr << "Variable code generation test failed!\n";
+            std::cerr << ir << '\n';
+            return 1;
+        }
+    }
+
+    // Test variable assignment code generation.
+    {
+        Lexer lexer(
+            "int x = 10;"
+            "x = x + 5;"
+            "print(x);"
+        );
+
+        Parser parser(lexer);
+
+        std::vector<std::unique_ptr<Stmt>> program = parser.parseProgram();
+
+        CodeGenerator generator;
+        generator.generateProgram(program);
+
+        std::string ir;
+        llvm::raw_string_ostream output(ir);
+
+        generator.printIR(output);
+        output.flush();
+
+        std::size_t storeCount = 0;
+        std::size_t position = 0;
+
+        while ((position = ir.find("store i64", position)) != std::string::npos)
+        {
+            ++storeCount;
+            position += 9;
+        }
+
+        if (storeCount != 2 || ir.find("add i64") == std::string::npos)
+        {
+            std::cerr << "Assignment code generation failed!\n";
+            std::cerr << ir << '\n';
             return 1;
         }
     }
