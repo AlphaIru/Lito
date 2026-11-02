@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <llvm/IR/DerivedTypes.h>
+#include <llvm/IR/Function.h>
 #include <llvm/IR/Instructions.h>
 #include <memory>
 #include <string>
@@ -38,4 +40,10 @@ class CodeGenerator
     llvm::Value *emitExpression(const Expr &expression);
 
     std::unordered_map<std::string, llvm::AllocaInst *> variables_;
+
+    void emitStatement(
+        const Stmt &statement,
+        llvm::FunctionCallee printfFunction,
+        llvm::Value *format
+    );
 };

@@ -1,8 +1,10 @@
 // Unit tests for the Lito parser.
 
 #include <iostream>
-#include <string>
+#include <memory>
 
+#include "ast.hpp"
+#include "lexer.hpp"
 #include "parser.hpp"
 
 int main()
@@ -225,7 +227,8 @@ int main()
 
         VarDeclStmt *declaration = dynamic_cast<VarDeclStmt *>(statement.get());
 
-        if (declaration == nullptr || declaration->name != "x")
+        if (declaration == nullptr || declaration->name != "x" ||
+            declaration->type != TypeKind::Int)
         {
             std::cerr << "Variable declaration test failed!\n";
             return 1;

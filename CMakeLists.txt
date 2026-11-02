@@ -28,6 +28,8 @@ add_executable(lito
     src/lexer.cpp
     src/parser.cpp
     src/codegen.cpp
+    src/codegen_expr.cpp
+    src/codegen_stmt.cpp
 )
 
 # Header directories
@@ -79,6 +81,8 @@ add_test(NAME ParserTests COMMAND lito_parser_tests)
 add_executable(lito_codegen_tests
     tests/codegen_tests.cpp
     src/codegen.cpp
+    src/codegen_expr.cpp
+    src/codegen_stmt.cpp
     src/parser.cpp
     src/lexer.cpp
 )

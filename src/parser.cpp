@@ -7,6 +7,7 @@
 
 #include "parser.hpp"
 #include "token.hpp"
+#include "type.hpp"
 
 Parser::Parser(Lexer &lexer) : lexer_(lexer), current_(lexer_.nextToken())
 {
@@ -53,6 +54,7 @@ std::unique_ptr<Stmt> Parser::parseVarDecl()
     // Create AST node.
     std::unique_ptr<VarDeclStmt> declaration = std::make_unique<VarDeclStmt>();
 
+    declaration->type = TypeKind::Int;
     declaration->name = std::move(name);
     declaration->initializer = std::move(initializer);
 

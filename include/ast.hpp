@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "token.hpp"
+#include "type.hpp"
 
 // Base class for all expressions.
 struct Expr
@@ -30,6 +31,7 @@ struct ExprStmt : Stmt
 // Variable declaration statement.
 struct VarDeclStmt : Stmt
 {
+    TypeKind type = TypeKind::Int;
     std::string name;
     std::unique_ptr<Expr> initializer;
 };
