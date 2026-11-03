@@ -11,6 +11,7 @@ enum class TokenType
     // Literals
     Identifier,
     Integer,
+    FloatLiteral,
     String,
 
     // Keywords
@@ -20,6 +21,7 @@ enum class TokenType
     Else,
     While,
     Int,
+    Float,
     Str,
     Bool,
 

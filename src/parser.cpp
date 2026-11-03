@@ -21,7 +21,24 @@ void Parser::advance()
 // Parse an integer variable declaration.
 std::unique_ptr<Stmt> Parser::parseVarDecl()
 {
-    advance(); // Consume 'int'
+    // Determine the declared type.
+    TypeKind type;
+
+    if (current_.type == TokenType::Int)
+    {
+        type = TypeKind::Int;
+    }
+    else if (current_.type == TokenType::Float)
+    {
+        type = TypeKind::Float;
+    }
+    else
+    {
+        throw std::runtime_error("Expected variable type");
+    }
+
+    // Consume the type keyword.
+    advance();
 
     // Expect variable name.
     if (current_.type != TokenType::Identifier)
@@ -54,7 +71,7 @@ std::unique_ptr<Stmt> Parser::parseVarDecl()
     // Create AST node.
     std::unique_ptr<VarDeclStmt> declaration = std::make_unique<VarDeclStmt>();
 
-    declaration->type = TypeKind::Int;
+    declaration->type = type;
     declaration->name = std::move(name);
     declaration->initializer = std::move(initializer);
 
@@ -83,7 +100,7 @@ std::unique_ptr<Stmt> Parser::parseStatement()
 {
 
     // Variable declaration.
-    if (current_.type == TokenType::Int)
+    if (current_.type == TokenType::Int || current_.type == TokenType::Float)
     {
         return parseVarDecl();
     }
@@ -152,6 +169,17 @@ std::unique_ptr<Expr> Parser::parsePrimary()
     if (current_.type == TokenType::Integer)
     {
         return std::make_unique<IntegerExpr>(parseInteger());
+    }
+
+    // Floating-point literal.
+    if (current_.type == TokenType::FloatLiteral)
+    {
+        std::unique_ptr<FloatExpr> expression =
+            std::make_unique<FloatExpr>(current_.text);
+
+        advance();
+
+        return expression;
     }
 
     // Parenthesized expression.

@@ -23,6 +23,16 @@ llvm::Value *CodeGenerator::emitExpression(const Expr &expression)
         return llvm::ConstantInt::getSigned(builder_.getInt64Ty(), number);
     }
 
+    // Floating-point literal.
+    const FloatExpr *floating = dynamic_cast<const FloatExpr *>(&expression);
+
+    if (floating != nullptr)
+    {
+        double number = std::stod(floating->value);
+
+        return llvm::ConstantFP::get(builder_.getDoubleTy(), number);
+    }
+
     // Identifier expression.
     const IdentifierExpr *identifier =
         dynamic_cast<const IdentifierExpr *>(&expression);
@@ -52,7 +62,17 @@ llvm::Value *CodeGenerator::emitExpression(const Expr &expression)
         switch (unary->op)
         {
         case TokenType::Minus:
-            return builder_.CreateNeg(operand, "negtmp");
+            if (operand->getType()->isIntegerTy(64))
+            {
+                return builder_.CreateNeg(operand, "negtmp");
+            }
+
+            if (operand->getType()->isDoubleTy())
+            {
+                return builder_.CreateFNeg(operand, "fnegtmp");
+            }
+
+            throw std::runtime_error("Unsupported operand type");
 
         default:
             throw std::runtime_error("Unsupported unary operator");
@@ -68,18 +88,49 @@ llvm::Value *CodeGenerator::emitExpression(const Expr &expression)
 
         llvm::Value *right = emitExpression(*binary->right);
 
+        // Both operands must have the same type.
+        if (left->getType() != right->getType())
+        {
+            throw std::runtime_error("Type mismatch in binary expression");
+        }
+
+        const bool isInteger = left->getType()->isIntegerTy(64);
+
+        const bool isFloat = left->getType()->isDoubleTy();
+
+        if (!isInteger && !isFloat)
+        {
+            throw std::runtime_error("Unsupported binary operand type");
+        }
+
         switch (binary->op)
         {
         case TokenType::Plus:
+            if (isFloat)
+            {
+                return builder_.CreateFAdd(left, right, "faddtmp");
+            }
             return builder_.CreateAdd(left, right, "addtmp");
 
         case TokenType::Minus:
+            if (isFloat)
+            {
+                return builder_.CreateFSub(left, right, "fsubtmp");
+            }
             return builder_.CreateSub(left, right, "subtmp");
 
         case TokenType::Star:
+            if (isFloat)
+            {
+                return builder_.CreateFMul(left, right, "fmultmp");
+            }
             return builder_.CreateMul(left, right, "multmp");
 
         case TokenType::Slash:
+            if (isFloat)
+            {
+                return builder_.CreateFDiv(left, right, "fdivtmp");
+            }
             return builder_.CreateSDiv(left, right, "divtmp");
 
         default:

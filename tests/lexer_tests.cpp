@@ -6,8 +6,9 @@
 
 // Check if the lexer works with expected tokens.
 
-bool testLexer(const std::string &source,
-               const std::vector<TokenType> &expected)
+bool testLexer(
+    const std::string &source, const std::vector<TokenType> &expected
+)
 {
     Lexer lexer(source);
 
@@ -30,16 +31,24 @@ bool testLexer(const std::string &source,
 int main()
 {
     // Test 1: Variable declaration
-    if (!testLexer("int x = 10;", {TokenType::Int, TokenType::Identifier,
-                                   TokenType::Assign, TokenType::Integer,
-                                   TokenType::Semicolon, TokenType::EndOfFile}))
+    if (!testLexer(
+            "int x = 10;",
+            {TokenType::Int,
+             TokenType::Identifier,
+             TokenType::Assign,
+             TokenType::Integer,
+             TokenType::Semicolon,
+             TokenType::EndOfFile}
+        ))
     {
         return 1;
     }
 
     // Test 2: Comments
-    if (!testLexer("// Hello\n/* World */ 42",
-                   {TokenType::Integer, TokenType::EndOfFile}))
+    if (!testLexer(
+            "// Hello\n/* World */ 42",
+            {TokenType::Integer, TokenType::EndOfFile}
+        ))
     {
         return 1;
     }
@@ -48,6 +57,27 @@ int main()
     if (!testLexer("/* Missing end", {TokenType::Invalid}))
     {
         return 1;
+    }
+
+    // Test floating-point literals.
+    {
+        Lexer lexer("float pi = 3.1415;");
+
+        Token keyword = lexer.nextToken();
+        Token identifier = lexer.nextToken();
+        Token assign = lexer.nextToken();
+        Token literal = lexer.nextToken();
+        Token semicolon = lexer.nextToken();
+
+        if (keyword.type != TokenType::Float ||
+            identifier.type != TokenType::Identifier ||
+            identifier.text != "pi" || assign.type != TokenType::Assign ||
+            literal.type != TokenType::FloatLiteral ||
+            literal.text != "3.1415" || semicolon.type != TokenType::Semicolon)
+        {
+            std::cerr << "Float lexer test failed!\n";
+            return 1;
+        }
     }
 
     std::cout << "All lexer tests passed!\n";

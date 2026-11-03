@@ -21,6 +21,13 @@ void CodeGenerator::emitStatement(
 
     if (declaration != nullptr)
     {
+
+        // Check variable type.
+        if (declaration->type != TypeKind::Int)
+        {
+            throw std::runtime_error("Float variables are not supported yet");
+        }
+
         if (variables_.find(declaration->name) != variables_.end())
         {
             throw std::runtime_error(
@@ -29,6 +36,13 @@ void CodeGenerator::emitStatement(
         }
 
         llvm::Value *initialValue = emitExpression(*declaration->initializer);
+
+        if (!initialValue->getType()->isIntegerTy(64))
+        {
+            throw std::runtime_error(
+                "Integer variable requires an integer initializer"
+            );
+        }
 
         llvm::AllocaInst *variable = builder_.CreateAlloca(
             builder_.getInt64Ty(), nullptr, declaration->name
@@ -55,6 +69,13 @@ void CodeGenerator::emitStatement(
         }
 
         llvm::Value *value = emitExpression(*assignment->value);
+
+        if (!value->getType()->isIntegerTy(64))
+        {
+            throw std::runtime_error(
+                "Integer variable requires an integer value"
+            );
+        }
 
         builder_.CreateStore(value, variable->second);
 
@@ -93,5 +114,24 @@ void CodeGenerator::emitStatement(
 
     llvm::Value *value = emitExpression(*call->arguments[0]);
 
-    builder_.CreateCall(printfFunction, {format, value});
+    // Print integer values.
+    if (value->getType()->isIntegerTy(64))
+    {
+        builder_.CreateCall(printfFunction, {format, value});
+
+        return;
+    }
+
+    // Print floating-point values.
+    if (value->getType()->isDoubleTy())
+    {
+        llvm::GlobalVariable *floatFormat =
+            builder_.CreateGlobalString("%.6f\n", "fmt.float");
+
+        builder_.CreateCall(printfFunction, {floatFormat, value});
+
+        return;
+    }
+
+    throw std::runtime_error("Unsupported print argument type");
 }

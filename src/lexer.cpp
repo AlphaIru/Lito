@@ -1,13 +1,16 @@
 // The true code for lexer.
 
 #include "lexer.hpp"
+#include "token.hpp"
 
 #include <cctype>
 #include <cstddef>
 #include <utility>
 
 // Initialize the lexer with source code.
-Lexer::Lexer(std::string source) : source_(std::move(source)) {}
+Lexer::Lexer(std::string source) : source_(std::move(source))
+{
+}
 
 // Calculate lexer progress.
 std::size_t Lexer::progressPercent() const
@@ -17,12 +20,17 @@ std::size_t Lexer::progressPercent() const
         return 100;
     }
 
-    return static_cast<std::size_t>(100.0 * static_cast<double>(position_) /
-                                    static_cast<double>(source_.size()));
+    return static_cast<std::size_t>(
+        100.0 * static_cast<double>(position_) /
+        static_cast<double>(source_.size())
+    );
 }
 
 // Check if it is a end of the source.
-bool Lexer::isAtEnd() const { return position_ >= source_.size(); }
+bool Lexer::isAtEnd() const
+{
+    return position_ >= source_.size();
+}
 
 // Look at the current char.
 char Lexer::peek() const
@@ -122,8 +130,12 @@ Token Lexer::nextToken()
         // Throw Error: Unterminated comment.
         if (isAtEnd())
         {
-            return {TokenType::Invalid, "Unterminated block comment",
-                    commentLine, commentColumn};
+            return {
+                TokenType::Invalid,
+                "Unterminated block comment",
+                commentLine,
+                commentColumn
+            };
         }
 
         // Consume */
@@ -143,14 +155,31 @@ Token Lexer::nextToken()
 
     char current = advance();
 
-    // Integer handler.
+    // Integer and floating-point number handler.
     if (std::isdigit(static_cast<unsigned char>(current)))
     {
         std::string number(1, current);
 
+        // Read the integer part.
         while (!isAtEnd() && std::isdigit(static_cast<unsigned char>(peek())))
         {
             number += advance();
+        }
+
+        if (peek() == '.' &&
+            std::isdigit(static_cast<unsigned char>(peekNext())))
+        {
+            // Consume the decimal point.
+            number += advance();
+
+            // Read the fractional digits.
+            while (!isAtEnd() &&
+                   std::isdigit(static_cast<unsigned char>(peek())))
+            {
+                number += advance();
+            }
+
+            return {TokenType::FloatLiteral, number, startLine, startColumn};
         }
 
         return {TokenType::Integer, number, startLine, startColumn};
@@ -188,6 +217,8 @@ Token Lexer::nextToken()
             type = TokenType::While;
         else if (identifier == "int")
             type = TokenType::Int;
+        else if (identifier == "float")
+            type = TokenType::Float;
         else if (identifier == "str")
             type = TokenType::Str;
         else if (identifier == "bool")
@@ -262,8 +293,9 @@ Token Lexer::nextToken()
             // Escape sequences are not supported yet.
             if (peek() == '\\')
             {
-                return {TokenType::Invalid, literal + "\\", startLine,
-                        startColumn};
+                return {
+                    TokenType::Invalid, literal + "\\", startLine, startColumn
+                };
             }
 
             literal += advance();
@@ -282,7 +314,8 @@ Token Lexer::nextToken()
     }
 
     default:
-        return {TokenType::Invalid, std::string(1, current), startLine,
-                startColumn};
+        return {
+            TokenType::Invalid, std::string(1, current), startLine, startColumn
+        };
     }
 }

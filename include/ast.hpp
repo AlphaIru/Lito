@@ -60,6 +60,16 @@ struct IntegerExpr : Expr
     }
 };
 
+// Floating-point literal exp.
+struct FloatExpr : Expr
+{
+    std::string value;
+
+    explicit FloatExpr(std::string value) : value(std::move(value))
+    {
+    }
+};
+
 // Identifier exp.
 struct IdentifierExpr : Expr
 {

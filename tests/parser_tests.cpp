@@ -270,6 +270,63 @@ int main()
         }
     }
 
+    // Test floating-point expressions.
+    {
+        Lexer lexer("3.14 + 2.0");
+        Parser parser(lexer);
+
+        std::unique_ptr<Expr> expression = parser.parseArth();
+
+        const BinaryExpr *binary =
+            dynamic_cast<const BinaryExpr *>(expression.get());
+
+        if (binary == nullptr || binary->op != TokenType::Plus)
+        {
+            std::cerr << "Float binary expression test failed!\n";
+            return 1;
+        }
+
+        const FloatExpr *left =
+            dynamic_cast<const FloatExpr *>(binary->left.get());
+
+        const FloatExpr *right =
+            dynamic_cast<const FloatExpr *>(binary->right.get());
+
+        if (left == nullptr || right == nullptr || left->value != "3.14" ||
+            right->value != "2.0")
+        {
+            std::cerr << "Float literal test failed!\n";
+            return 1;
+        }
+    }
+
+    // Test floating-point variable declarations.
+    {
+        Lexer lexer("float pi = 3.14159;");
+        Parser parser(lexer);
+
+        std::unique_ptr<Stmt> statement = parser.parseStatement();
+
+        const VarDeclStmt *declaration =
+            dynamic_cast<const VarDeclStmt *>(statement.get());
+
+        if (declaration == nullptr || declaration->type != TypeKind::Float ||
+            declaration->name != "pi")
+        {
+            std::cerr << "Float declaration test failed!\n";
+            return 1;
+        }
+
+        const FloatExpr *initializer =
+            dynamic_cast<const FloatExpr *>(declaration->initializer.get());
+
+        if (initializer == nullptr || initializer->value != "3.14159")
+        {
+            std::cerr << "Float initializer test failed!\n";
+            return 1;
+        }
+    }
+
     std::cout << "All parser tests passed!\n";
     return 0;
 }

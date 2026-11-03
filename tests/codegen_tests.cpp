@@ -197,6 +197,36 @@ int main()
         }
     }
 
+    // Test floating-point code generation.
+    {
+        Lexer lexer(
+            "print(3.5 + 2.25);"
+            "print(-2.5);"
+        );
+
+        Parser parser(lexer);
+
+        std::vector<std::unique_ptr<Stmt>> program = parser.parseProgram();
+
+        CodeGenerator generator;
+        generator.generateProgram(program);
+
+        std::string ir;
+        llvm::raw_string_ostream output(ir);
+
+        generator.printIR(output);
+        output.flush();
+
+        if (ir.find("fadd double") == std::string::npos ||
+            ir.find("fneg double") == std::string::npos ||
+            ir.find("@printf") == std::string::npos)
+        {
+            std::cerr << "Float code generation test failed!\n";
+            std::cerr << ir << '\n';
+            return 1;
+        }
+    }
+
     std::cout << "All LLVM code generation tests passed!\n";
 
     return 0;
