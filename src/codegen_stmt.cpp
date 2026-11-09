@@ -21,38 +21,62 @@ void CodeGenerator::emitStatement(
 
     if (declaration != nullptr)
     {
+        // Variable declaration.
+        const VarDeclStmt *declaration =
+            dynamic_cast<const VarDeclStmt *>(&statement);
 
-        // Check variable type.
-        if (declaration->type != TypeKind::Int)
+        if (declaration != nullptr)
         {
-            throw std::runtime_error("Float variables are not supported yet");
+            // Determine LLVM variable type.
+            llvm::Type *variableType = nullptr;
+
+            switch (declaration->type)
+            {
+            case TypeKind::Int:
+                variableType = builder_.getInt64Ty();
+                break;
+
+            case TypeKind::Float:
+                variableType = builder_.getDoubleTy();
+                break;
+
+            default:
+                throw std::runtime_error("Unsupported variable type");
+            }
+
+            // Check duplicate declarations.
+            if (variables_.find(declaration->name) != variables_.end())
+            {
+                throw std::runtime_error(
+                    "Variable already declared: " + declaration->name
+                );
+            }
+
+            // Generate the initializer.
+            llvm::Value *initialValue =
+                emitExpression(*declaration->initializer);
+
+            // Ensure the initializer matches the variable type.
+            if (initialValue->getType() != variableType)
+            {
+                throw std::runtime_error(
+                    "Type mismatch in variable declaration: " +
+                    declaration->name
+                );
+            }
+
+            // Allocate memory.
+            llvm::AllocaInst *variable =
+                builder_.CreateAlloca(variableType, nullptr, declaration->name);
+
+            // Store the initial value.
+            builder_.CreateStore(initialValue, variable);
+
+            // Register the variable.
+            variables_.emplace(declaration->name, variable);
+
+            return;
         }
-
-        if (variables_.find(declaration->name) != variables_.end())
-        {
-            throw std::runtime_error(
-                "Variable already declared: " + declaration->name
-            );
-        }
-
-        llvm::Value *initialValue = emitExpression(*declaration->initializer);
-
-        if (!initialValue->getType()->isIntegerTy(64))
-        {
-            throw std::runtime_error(
-                "Integer variable requires an integer initializer"
-            );
-        }
-
-        llvm::AllocaInst *variable = builder_.CreateAlloca(
-            builder_.getInt64Ty(), nullptr, declaration->name
-        );
-
-        builder_.CreateStore(initialValue, variable);
-
-        variables_.emplace(declaration->name, variable);
-
-        return;
     }
 
     // Assignment statement.
@@ -70,10 +94,12 @@ void CodeGenerator::emitStatement(
 
         llvm::Value *value = emitExpression(*assignment->value);
 
-        if (!value->getType()->isIntegerTy(64))
+        llvm::Type *variableType = variable->second->getAllocatedType();
+
+        if (value->getType() != variableType)
         {
             throw std::runtime_error(
-                "Integer variable requires an integer value"
+                "Type mismatch in assignment: " + assignment->name
             );
         }
 
@@ -126,7 +152,7 @@ void CodeGenerator::emitStatement(
     if (value->getType()->isDoubleTy())
     {
         llvm::GlobalVariable *floatFormat =
-            builder_.CreateGlobalString("%.6f\n", "fmt.float");
+            builder_.CreateGlobalString("%.15g\n", "fmt.float");
 
         builder_.CreateCall(printfFunction, {floatFormat, value});
 

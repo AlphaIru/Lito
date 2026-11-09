@@ -227,6 +227,41 @@ int main()
         }
     }
 
+    // Test floating-point variables.
+    {
+        Lexer lexer(
+            "float x = 3.5;"
+            "float y = 2.0;"
+            "float result = x * y;"
+            "result = result + 1.5;"
+            "print(result);"
+        );
+
+        Parser parser(lexer);
+
+        std::vector<std::unique_ptr<Stmt>> program = parser.parseProgram();
+
+        CodeGenerator generator;
+        generator.generateProgram(program);
+
+        std::string ir;
+        llvm::raw_string_ostream output(ir);
+
+        generator.printIR(output);
+        output.flush();
+
+        if (ir.find("alloca double") == std::string::npos ||
+            ir.find("store double") == std::string::npos ||
+            ir.find("load double") == std::string::npos ||
+            ir.find("fmul double") == std::string::npos ||
+            ir.find("fadd double") == std::string::npos)
+        {
+            std::cerr << "Float variable code generation failed!\n";
+            std::cerr << ir << '\n';
+            return 1;
+        }
+    }
+
     std::cout << "All LLVM code generation tests passed!\n";
 
     return 0;

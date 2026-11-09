@@ -47,8 +47,10 @@ llvm::Value *CodeGenerator::emitExpression(const Expr &expression)
             throw std::runtime_error("Undefined variable: " + identifier->name);
         }
 
+        llvm::AllocaInst *storage = variable->second;
+
         return builder_.CreateLoad(
-            builder_.getInt64Ty(), variable->second, identifier->name + ".value"
+            storage->getAllocatedType(), storage, identifier->name + ".value"
         );
     }
 
